@@ -188,61 +188,54 @@ static void sqlite_regexp(sqlite3_context* context, int argc, sqlite3_value** va
 {
     CDVPluginResult* pluginResult = nil;
     NSMutableDictionary *options = [command.arguments objectAtIndex:0];
-
     NSString *dbname = [self getDBPath:[options objectForKey:@"name"]];
-    NSValue *dbPointer;
 
     if (dbname == NULL) {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"You must specify database name"];
     }
     else {
-        bool truncateDB = ([options objectForKey:@"reset"]) ? [[options objectForKey:@"reset"] boolValue] : NO;
-        
-        dbPointer = [openDBs objectForKey:dbname];
-        if (dbPointer != NULL) {
-            if (truncateDB) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to reset: database open"];
-            } else {
-                // NSLog(@"Reusing existing database connection");
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Database opened"];
-            }
+        NSValue *dbPointer = [openDBs objectForKey:dbname];
+        if (dbPointer != nil) {
+            // close the database
+            sqlite3 *db = [dbPointer pointerValue];
+            [openDBs removeObjectForKey:dbname];
+            if (db != NULL && sqlite3_close(db) != SQLITE_OK) {
+                NSLog(@"failed to close open DB: %@", dbname);
+            };
         }
-        else {
-            NSFileManager *fileManager = [NSFileManager defaultManager];
 
-            // delete existing database file if user requests a reset
-            if (truncateDB == YES) {
-                [fileManager removeItemAtPath:dbname error:nil];
-            }
+        NSFileManager *fileManager = [NSFileManager defaultManager];
 
-            // copy seed file if DB file doesn't exist
-            // note: the root path for seed files is the www/ directory
-            NSString *dbSeedPath = [[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"www"] stringByAppendingPathComponent:[options objectForKey:@"name"]];
-            [fileManager copyItemAtPath:dbSeedPath toPath:dbname error:nil]; // aborts if file exists at toPath
+        // delete existing database file when user requests a reset
+        if ([options objectForKey:@"reset"]:[[options objectForKey:@"reset"] boolValue]:NO) {
+            [fileManager removeItemAtPath:dbname error:nil];
+        }
 
-            const char *name = [dbname UTF8String];
-            // NSLog(@"using db name: %@", dbname);
-            sqlite3 *db;
+        // copy seed file if DB file doesn't exist
+        // note: the root path for seed files is the www/ directory
+        NSString *dbSeedPath = [[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"www"] stringByAppendingPathComponent:[options objectForKey:@"name"]];
+        [fileManager copyItemAtPath:dbSeedPath toPath:dbname error:nil]; // aborts if file exists at toPath
 
-            if (sqlite3_open(name, &db) != SQLITE_OK) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to open DB"];
-                return;
-            }
-            else {
-                // Extra for SQLCipher:
-                // const char *key = [@"your_key_here" UTF8String];
-                // if(key != NULL) sqlite3_key(db, key, strlen(key));
+        const char *name = [dbname UTF8String];
+        // NSLog(@"using db name: %@", dbname);
+        sqlite3 *db;
 
-		sqlite3_create_function(db, "regexp", 2, SQLITE_ANY, NULL, &sqlite_regexp, NULL, NULL);
-	
-                // Attempt to read the SQLite master table (test for SQLCipher version):
-                if(sqlite3_exec(db, (const char*)"SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK) {
-                    dbPointer = [NSValue valueWithPointer:db];
-                    [openDBs setObject: dbPointer forKey: dbname];
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Database opened"];
-                } else {
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to encrypt DB"];
-                }
+        if (sqlite3_open(name, &db) != SQLITE_OK) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to open DB"];
+        } else {
+            // Extra for SQLCipher:
+            // const char *key = [@"your_key_here" UTF8String];
+            // if(key != NULL) sqlite3_key(db, key, strlen(key));
+
+            sqlite3_create_function(db, "regexp", 2, SQLITE_ANY, NULL, &sqlite_regexp, NULL, NULL);
+
+            // Attempt to read the SQLite master table (test for SQLCipher version):
+            if(sqlite3_exec(db, (const char*)"SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK) {
+                dbPointer = [NSValue valueWithPointer:db];
+                [openDBs setObject: dbPointer forKey: dbname];
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Database opened"];
+            } else {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to encrypt DB"];
             }
         }
     }
@@ -282,6 +275,24 @@ static void sqlite_regexp(sqlite3_context* context, int argc, sqlite3_value** va
     }
     [self.commandDelegate sendPluginResult:pluginResult callbackId: command.callbackId];
 }
+
+//-(CDVPluginResult *) closeDatabase: (NSString *)dbPath
+//{
+//    NSValue *val = [openDBs objectForKey:dbPath];
+//    sqlite3 *db = [val pointerValue];
+//
+//    [openDBs removeObjectForKey:dbPath];
+//
+//    if (db == NULL) {
+//        return [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Specified DB was not open"];
+//    }
+//
+//    if (sqlite3_close(db) == SQLITE_OK) {
+//        return [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"DB closed"]
+//    } else {
+//        return [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Failed to close DB"]
+//    };
+//}
 
 -(void) delete: (CDVInvokedUrlCommand*)command
 {
