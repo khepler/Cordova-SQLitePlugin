@@ -114,13 +114,6 @@ public class SQLitePlugin extends CordovaPlugin {
 
                 this.closeDatabase(dbname);
                 break;
-            case reset:
-                o = args.getJSONObject(0);
-                dbname = o.getString("path");
-
-                this.deleteDatabase(dbname);
-                this.openDatabase(dbname, null);
-                break;
             case delete:
                 o = args.getJSONObject(0);
                 dbname = o.getString("path");
@@ -244,40 +237,64 @@ public class SQLitePlugin extends CordovaPlugin {
     }
 
     /**
-     * If a prepopulated DB file exists in the assets it is copied to the dbPath.
+     * If a prepopulated DB file exists in the assets it is copied to the dbPath.  Any
+     * existing file at the destination path is overwritten.
+     *
+     * @param dbFile  A File object representing the destination path.
      */
-    private void copyPrepopulatedDatabase(File dbFile) throws IOException {
+    private void copyPrepopulatedDatabase(File dbFile) throws Exception {
         String seedFile = dbFile.getName();
-        InputStream in;
-        OutputStream out;
 
-        // try to open input file from the APK
+        InputStream in = null;
+        OutputStream out = null;
+
         try {
-            in = this.cordova.getActivity().getAssets().open(seedFile);
-        } catch ( Exception ignored ) {
-            Log.i(SQLitePlugin.class.getSimpleName(), "unable to open asset: " + seedFile);
-            return;
+            // try to open input file from the APK
+            try {
+                // make paths relative to www/ directory
+                in = this.cordova.getActivity().getAssets().open("www/" + seedFile);
+            } catch (Exception ignored) {
+                // file doesn't exist in assets
+                return;
+            }
+
+            Log.i(SQLitePlugin.class.getSimpleName(), "copying seed database from assets: " + seedFile);
+
+            // clobber destination file
+            if (dbFile.exists()) {
+                dbFile.delete();
+            }
+
+            Log.i(SQLitePlugin.class.getSimpleName(), "copying pre-populated database file: " + seedFile);
+
+            // open output file
+            out = new FileOutputStream(dbFile);
+
+            // copy file contents out of the APK
+            byte[] buf = new byte[4096];
+            int len;
+            while ((len = in.read(buf,0,4096)) > 0) {
+                out.write(buf, 0, len);
+            }
+        } catch (Exception ex) {
+            // forward exception up the call stack
+            throw ex;
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (Exception ex) {
+                    Log.e(SQLitePlugin.class.getSimpleName(), "exception closing input file: " + ex.getMessage());
+                }
+            }
+            if (out != null ) {
+                try {
+                    out.close();
+                } catch (Exception ex) {
+                    Log.e(SQLitePlugin.class.getSimpleName(), "exception closing output file: " + ex.getMessage());
+                }
+            }
         }
-
-        // clobber destination file
-        if (dbFile.exists()) {
-            dbFile.delete();
-        }
-
-        Log.i(SQLitePlugin.class.getSimpleName(), "copying pre-populated database file: " + seedFile);
-
-        // open output file
-        out = new FileOutputStream(dbFile);
-
-        // copy file contents out of the APK
-        byte[] buf = new byte[4096];
-        int len;
-        while ((len = in.read(buf,0,4096)) > 0) {
-            out.write(buf, 0, len);
-        }
-
-        in.close();
-        out.close();
     }
 
     /**
@@ -302,7 +319,7 @@ public class SQLitePlugin extends CordovaPlugin {
      */
     private boolean deleteDatabase(String dbname) {
         boolean status = false; // assume the worst case:
-        
+
         if (this.getDatabase(dbname) != null) {
             this.closeDatabase(dbname);
         }
@@ -681,7 +698,6 @@ public class SQLitePlugin extends CordovaPlugin {
     private static enum Action {
         open,
         close,
-        reset,
         delete,
         executePragmaStatement,
         executeSqlBatch,
