@@ -39,6 +39,7 @@ var db = window.sqlitePlugin.openDatabase({name: "my.db"});
   - No 5MB maximum, more information at: http://www.sqlite.org/limits.html
 - Android & iOS working with [SQLCipher](http://sqlcipher.net) for encryption (see below)
 - Android is supported back to SDK 10 (a.k.a. Gingerbread, Android 2.3.3); Support for older versions is available upon request.
+- Support for large pre-poulated databases
 
 ## Apps using Cordova/PhoneGap SQLitePlugin
 
@@ -95,6 +96,40 @@ function onDeviceReady() {
 ```
 
 **NOTE:** The database file name should include the extension, if desired.
+
+## Summary of options
+
+| option name | type    | description |
+| ----------: | :-----: | ----------- |
+| name        | string  | The name of the database. (**required**) |
+| reset       | boolean | Reset the database to a pristine state before opening. |
+| seedFile    | string  | Filename of pre-populated database to copy on first open. (not implemented) |
+
+## Resetting the database
+
+Passing `reset` option will delete the database file before opening it:
+
+```js
+var db = window.sqlitePlugin.openDatabase({name: "my.db", reset: true});
+```
+
+**Note:** The database will be reset even if it is currently open.
+
+## Pre-populated databases
+
+**WARING:** The `seedFile` option is not yet implemented, and the `name` option currently specifies the filename to copy.  This will change very soon.
+
+To include a prepopulated database, place the file in your `www` directory and assign the filename to the `seedFile` option.  The file will be copied only when opening the database for the first time.
+
+```js
+var db = window.sqlitePlugin.openDatabase({name: "myDatabase", seedFile: "prepopulated.db"});
+```
+
+Passing the `reset` option as well will always copy the database:
+
+```js
+var db = window.sqlitePlugin.openDatabase({name: "myDatabase", reset: true, seedFile: "prepopulated.db"});
+```
 
 ## Background processing
 
