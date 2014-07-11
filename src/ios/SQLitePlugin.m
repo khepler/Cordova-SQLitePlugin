@@ -196,12 +196,30 @@ static void sqlite_regexp(sqlite3_context* context, int argc, sqlite3_value** va
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"You must specify database name"];
     }
     else {
+        bool truncateDB = ([options objectForKey:@"reset"]) ? [[options objectForKey:@"reset"] boolValue] : NO;
+        
         dbPointer = [openDBs objectForKey:dbname];
         if (dbPointer != NULL) {
-            // NSLog(@"Reusing existing database connection");
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Database opened"];
+            if (truncateDB) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to reset: database open"];
+            } else {
+                // NSLog(@"Reusing existing database connection");
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Database opened"];
+            }
         }
         else {
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+
+            // delete existing database file if user requests a reset
+            if (truncateDB == YES) {
+                [fileManager removeItemAtPath:dbname error:nil];
+            }
+
+            // copy seed file if DB file doesn't exist
+            // note: the root path for seed files is the www/ directory
+            NSString *dbSeedPath = [[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"www"] stringByAppendingPathComponent:[options objectForKey:@"name"]];
+            [fileManager copyItemAtPath:dbSeedPath toPath:dbname error:nil]; // aborts if file exists at toPath
+
             const char *name = [dbname UTF8String];
             // NSLog(@"using db name: %@", dbname);
             sqlite3 *db;
