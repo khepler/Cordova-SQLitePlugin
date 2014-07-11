@@ -282,8 +282,6 @@ public class SQLitePlugin extends CordovaPlugin {
                 return;
             }
 
-            Log.i(SQLitePlugin.class.getSimpleName(), "copying seed database from assets: " + seedFile);
-
             // clobber destination file
             if (dbFile.exists()) {
                 dbFile.delete();
