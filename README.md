@@ -97,7 +97,7 @@ function onDeviceReady() {
 
 **NOTE:** The database file name should include the extension, if desired.
 
-## Summary of options
+### Summary of Options
 
 | option name | type    | description |
 | ----------: | :-----: | ----------- |
