@@ -103,7 +103,7 @@ function onDeviceReady() {
 | ----------: | :-----: | ----------- |
 | name        | string  | The name of the database. (**required**) |
 | reset       | boolean | Reset the database to a pristine state before opening. |
-| seedFile    | string  | Filename of pre-populated database to copy on first open. (not implemented) |
+| seed        | string  | Filename of pre-populated database to copy on first open. (not implemented) |
 
 ## Resetting the database
 
@@ -117,18 +117,18 @@ var db = window.sqlitePlugin.openDatabase({name: "my.db", reset: true});
 
 ## Pre-populated databases
 
-**WARING:** The `seedFile` option is not yet implemented, and the `name` option currently specifies the filename to copy.  This will change very soon.
+**WARING:** The `seed` option is not yet implemented, and the `name` option currently specifies the filename to copy.  This will change very soon.
 
-To include a prepopulated database, place the file in your `www` directory and assign the filename to the `seedFile` option.  The file will be copied only when opening the database for the first time.
+To include a prepopulated database, place the file in your `www` directory and assign the filename to the `seed` option.  The file will be copied only when opening the database for the first time.
 
 ```js
-var db = window.sqlitePlugin.openDatabase({name: "myDatabase", seedFile: "prepopulated.db"});
+var db = window.sqlitePlugin.openDatabase({name: "myDatabase", seed: "prepopulated.db"});
 ```
 
 Passing the `reset` option as well will always copy the database:
 
 ```js
-var db = window.sqlitePlugin.openDatabase({name: "myDatabase", reset: true, seedFile: "prepopulated.db"});
+var db = window.sqlitePlugin.openDatabase({name: "myDatabase", reset: true, seed: "prepopulated.db"});
 ```
 
 ## Background processing
